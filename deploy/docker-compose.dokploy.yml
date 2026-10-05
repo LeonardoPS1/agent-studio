@@ -38,7 +38,7 @@ services:
       OPENFANG_API_KEY: ${OPENFANG_API_KEY:?Define OPENFANG_API_KEY}
       STUDIO_PASSWORD: ${STUDIO_PASSWORD:?Define STUDIO_PASSWORD}
       STUDIO_SECRET: ${STUDIO_SECRET:?Define STUDIO_SECRET}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://dashboard_user:gLfzAyEq0KQL4Qplamdlx8x9ouZdHcnP@172.18.0.1:5432/consultorio_medico}
+      DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL}
     networks: [internal, dokploy-network]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]

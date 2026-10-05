@@ -1,4 +1,10 @@
 .env
+.env.*
+!.env.example
+!.env.dokploy.example
 node_modules/
 .next/
 __pycache__/
+docs/vps-ssh.md
+deploy/*.pem
+deploy/*.key
