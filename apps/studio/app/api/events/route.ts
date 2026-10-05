@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import { ofJson } from "@/lib/of";
+import { getWsCollector } from "@/lib/ws-collector";
+import type { NormalizedEvent } from "@/lib/events";
 import type { Activity, AgentNode, Approval, Edge, Snapshot, Status } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -9,19 +11,35 @@ const POLL_MS = 1500;
 const TOOL_WINDOW_MS = 4000;
 
 /**
+ * Estado global de clientes SSE conectados (server-side singleton).
+ * En Next.js App Router con Node.js runtime, esto persiste entre requests.
+ */
+let sseClientCount = 0;
+let collectorStarted = false;
+
+/**
  * Agrega el estado de OpenFang en un único flujo SSE para la interfaz.
- * Fuentes (verificadas en OpenFang 0.6.9): /api/agents, /api/comms/topology, /api/approvals,
- * /api/budget, /api/audit/recent, /api/audit/verify.
+ * Fuentes: /api/agents, /api/comms/topology, /api/approvals, /api/budget, /api/audit/recent, /api/audit/verify.
+ * NUEVO (Fase 2): Eventos en tiempo real desde WebSocket del motor via ws-collector.
  */
 export async function GET(req: NextRequest) {
   const enc = new TextEncoder();
   let stopped = false;
+
+  // Incrementar contador de clientes y arrancar colector si es el primero
+  sseClientCount++;
+  if (!collectorStarted) {
+    collectorStarted = true;
+    // Arrancar colector WS en background (no await para no bloquear el stream)
+    startCollector().catch(console.error);
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: string, data: unknown) => {
         if (!stopped) controller.enqueue(enc.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
+
       const names = new Map<string, string>();
       const lastTool = new Map<string, number>();
       let lastSeq = -1;
@@ -29,7 +47,17 @@ export async function GET(req: NextRequest) {
       let lastIntegrity = 0;
       let first = true;
 
+      // Buffer para eventos WS en tiempo real (se vacían en cada tick)
+      const wsEventBuffer: NormalizedEvent[] = [];
+
+      // Suscribirse a eventos del colector WS
+      const collector = getWsCollector();
+      const unsubscribe = collector.onEvent?.((ev: NormalizedEvent) => {
+        wsEventBuffer.push(ev);
+      });
+
       const tick = async () => {
+        // 1. Polling tradicional (auditoría, snapshot, etc.)
         const [agents, topo, appr, budget, audit] = await Promise.all([
           ofJson<any[]>("/api/agents"),
           ofJson<{ edges: any[] }>("/api/comms/topology"),
@@ -56,6 +84,11 @@ export async function GET(req: NextRequest) {
         }
         if (entries.length) lastSeq = Math.max(lastSeq, entries[entries.length - 1].seq);
         if (fresh.length) send("activity", fresh);
+
+        // 2. Emitir eventos WS bufferizados (tiempo real, precisión <3s)
+        if (wsEventBuffer.length) {
+          send("ws_events", wsEventBuffer.splice(0, wsEventBuffer.length));
+        }
 
         // Instantánea normalizada
         const pendingBy = new Map<string, number>();
@@ -93,8 +126,24 @@ export async function GET(req: NextRequest) {
           await new Promise((r) => setTimeout(r, POLL_MS));
         }
       };
+
       const ping = setInterval(() => { if (!stopped) controller.enqueue(enc.encode(": ping\n\n")); }, 15000);
-      req.signal.addEventListener("abort", () => { stopped = true; clearInterval(ping); try { controller.close(); } catch {} });
+
+      req.signal.addEventListener("abort", () => {
+        stopped = true;
+        clearInterval(ping);
+        unsubscribe?.();
+        // Decrementar contador y parar colector si no hay más clientes
+        sseClientCount--;
+        if (sseClientCount <= 0) {
+          sseClientCount = 0;
+          collectorStarted = false;
+          // Opcional: mantener colector vivo un tiempo o pararlo
+          // getWsCollector().stop();
+        }
+        try { controller.close(); } catch {}
+      });
+
       loop();
     },
     cancel() { stopped = true; },
@@ -103,4 +152,24 @@ export async function GET(req: NextRequest) {
   return new Response(stream, {
     headers: { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" },
   });
+}
+
+/**
+ * Arranca el colector WS para agentes activos.
+ * Obtiene la lista de agentes desde /api/agents y los suscribe.
+ */
+async function startCollector(): Promise<void> {
+  try {
+    const agents = await ofJson<any[]>("/api/agents");
+    if (!agents?.length) {
+      console.log('[ws-collector] No hay agentes para monitorear');
+      return;
+    }
+    const agentIds = agents.map((a) => a.id);
+    const collector = getWsCollector();
+    await collector.start(agentIds);
+    console.log('[ws-collector] Iniciado via SSE para:', agentIds.join(', '));
+  } catch (e) {
+    console.error('[ws-collector] Error iniciando:', e);
+  }
 }

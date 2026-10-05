@@ -5,6 +5,7 @@ import type { Activity, Integrity, Snapshot } from "@/lib/types";
 import Inspector from "@/components/Inspector";
 
 const Canvas = dynamic(() => import("@/components/Canvas"), { ssr: false });
+const Timeline = dynamic(() => import("@/components/Timeline"), { ssr: false });
 
 const ACTION_LABEL: Record<string, string> = {
   ToolInvoke: "usó una herramienta", AgentMessage: "procesó un mensaje", AgentSpawn: "fue creado", AgentKill: "fue detenido",
@@ -20,8 +21,10 @@ export default function MissionControl() {
   const [online, setOnline] = useState<boolean | null>(null);
   const [integrity, setIntegrity] = useState<Integrity | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [tab, setTab] = useState<"activity" | "approvals" | "agent">("activity");
+  const [tab, setTab] = useState<"activity" | "approvals" | "agent" | "timeline">("activity");
   const [onlyAgent, setOnlyAgent] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [runs, setRuns] = useState<Array<{ id: string; name: string | null; started_at: string | null; event_count: number }>>([]);
 
   useEffect(() => {
     const es = new EventSource("/api/events");
@@ -35,6 +38,24 @@ export default function MissionControl() {
     es.onerror = () => setOnline(false);
     return () => es.close();
   }, []);
+
+  // Cargar lista de runs para el selector del Timeline
+  useEffect(() => {
+    async function loadRuns() {
+      try {
+        const res = await fetch("/api/events/history?runs=1&limit=50");
+        if (res.ok) {
+          const { runs: runList } = await res.json();
+          setRuns(runList);
+          // Auto-seleccionar el más reciente si no hay selección
+          if (!selectedRunId && runList.length > 0) setSelectedRunId(runList[0].id);
+        }
+      } catch {}
+    }
+    loadRuns();
+    const interval = setInterval(loadRuns, 30000); // refresh cada 30s
+    return () => clearInterval(interval);
+  }, [selectedRunId]);
 
   const sel = snap.agents.find((a) => a.id === selected) ?? null;
   useEffect(() => { if (sel) setTab("agent"); }, [selected]); // eslint-disable-line
@@ -88,6 +109,7 @@ export default function MissionControl() {
               Aprobaciones{counts.waiting > 0 && <span className="badge-n">{counts.waiting}</span>}
             </button>
             <button role="tab" aria-selected={tab === "agent"} className={tab === "agent" ? "on" : ""} onClick={() => setTab("agent")} disabled={!sel}>Agente</button>
+            <button role="tab" aria-selected={tab === "timeline"} className={tab === "timeline" ? "on" : ""} onClick={() => setTab("timeline")}>Timeline</button>
           </div>
 
           {tab === "activity" && (
@@ -124,6 +146,27 @@ export default function MissionControl() {
           )}
 
           {tab === "agent" && sel && <div className="pane"><Inspector key={sel.id} agent={sel} /></div>}
+
+          {tab === "timeline" && (
+            <div className="pane timeline-pane">
+              <div className="timeline-toolbar">
+                <select
+                  value={selectedRunId ?? ""}
+                  onChange={(e) => setSelectedRunId(e.target.value || null)}
+                  className="run-select"
+                  disabled={runs.length === 0}
+                >
+                  <option value="">— Seleccionar run —</option>
+                  {runs.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name ?? r.id.slice(0, 8)} — {new Date(r.started_at ?? Date.now()).toLocaleString("es-CL")} · {r.event_count} eventos
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Timeline agents={snap.agents.map((a) => ({ id: a.id, name: a.name, emoji: a.emoji }))} selectedRunId={selectedRunId} isLive={online === true} />
+            </div>
+          )}
         </aside>
       </div>
     </div>
