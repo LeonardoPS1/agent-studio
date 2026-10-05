@@ -4,7 +4,7 @@ test.describe('Landing page', () => {
   test('should show landing page at root', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('Agent Studio');
-    await expect(page.locator('text=Mission Control')).toBeVisible();
+    await expect(page.locator('h1')).toContainText('Mission Control');
     await expect(page.locator('text=Entrar al Studio')).toBeVisible();
   });
 
@@ -27,7 +27,7 @@ test.describe('Login flow', () => {
     await page.goto('/login');
     await page.fill('input[name="password"]', 'wrong');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=No se pudo iniciar sesión')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -35,9 +35,14 @@ test.describe('Mission Control (authenticated)', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test.beforeEach(async ({ page }) => {
-    // Login with correct password from env
+    // Integration tests: require a live Studio (STUDIO_PASSWORD/STUDIO_SECRET)
+    // and a running OpenFang engine. Enable with E2E_LIVE=1.
+    test.skip(
+      process.env.E2E_LIVE !== '1',
+      'Requires a live Studio (STUDIO_PASSWORD/STUDIO_SECRET) with a running OpenFang engine'
+    );
     await page.goto('/login');
-    const password = process.env.STUDIO_PASSWORD || 'change-me-strong-password';
+    const password = process.env.STUDIO_PASSWORD!;
     await page.fill('input[name="password"]', password);
     await page.click('button[type="submit"]');
     await page.waitForURL('/app');

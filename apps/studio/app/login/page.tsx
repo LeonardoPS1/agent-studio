@@ -10,7 +10,7 @@ export default function Login() {
     e.preventDefault();
     setBusy(true); setError("");
     const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
-    if (r.ok) { window.location.href = "/"; return; }
+    if (r.ok) { window.location.href = "/app"; return; }
     setError((await r.json().catch(() => ({}))).error ?? "No se pudo iniciar sesión");
     setBusy(false);
   }
@@ -23,7 +23,7 @@ export default function Login() {
         <label htmlFor="password">Contraseña
           <input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password" />
         </label>
-        <button className="primary" disabled={busy || !password}>{busy ? "Entrando…" : "Entrar"}</button>
+        <button type="submit" className="primary" disabled={busy || !password}>{busy ? "Entrando…" : "Entrar"}</button>
         {error && <p className="error" role="alert">{error}</p>}
       </form>
     </main>
