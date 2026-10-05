@@ -39,6 +39,7 @@ services:
       STUDIO_PASSWORD: ${STUDIO_PASSWORD:?Define STUDIO_PASSWORD}
       STUDIO_SECRET: ${STUDIO_SECRET:?Define STUDIO_SECRET}
       DATABASE_URL: ${DATABASE_URL:?Define DATABASE_URL}
+      EVENTS_RETENTION_DAYS: ${EVENTS_RETENTION_DAYS:-30}
     networks: [internal, dokploy-network]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
