@@ -83,7 +83,7 @@ export default function MissionControl() {
   return (
     <div className="app">
       <header className="bar">
-        <h1>OpenFang Studio</h1>
+        <h1>Agent Studio</h1>
         <span className={`pill ${online ? "ok" : online === false ? "bad" : ""}`}>
           {online === null ? "Conectando…" : online ? "Motor conectado" : "Sin conexión con el motor"}
         </span>
