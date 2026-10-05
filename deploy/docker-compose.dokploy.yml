@@ -47,7 +47,18 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-    # Dominio y HTTPS: configúralos en Dokploy > Domains (servicio studio, puerto 3000).
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: dokploy-network
+      traefik.http.routers.agentstudio-web.rule: Host(`agentstudio.aicorebots.com`)
+      traefik.http.routers.agentstudio-web.entrypoints: web
+      traefik.http.routers.agentstudio-web.middlewares: redirect-to-https@file
+      traefik.http.routers.agentstudio-websecure.rule: Host(`agentstudio.aicorebots.com`)
+      traefik.http.routers.agentstudio-websecure.entrypoints: websecure
+      traefik.http.routers.agentstudio-websecure.tls.certresolver: letsencrypt
+      traefik.http.services.agentstudio.loadbalancer.server.port: "3000"
+    # El dominio público queda declarado por labels de Traefik (prov. docker,
+    # red dokploy-network). El certificado TLS lo emite letsencrypt (HTTP-01).
 
 networks:
   internal:
