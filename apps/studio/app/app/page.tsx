@@ -60,6 +60,15 @@ export default function MissionControl() {
 
   const sel = snap.agents.find((a) => a.id === selected) ?? null;
   useEffect(() => { if (sel) setTab("agent"); }, [selected]); // eslint-disable-line
+
+  // Sincroniza el agente seleccionado con el único WebSocket en vivo del colector.
+  useEffect(() => {
+    fetch("/api/collector/select", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ agentId: selected }),
+    }).catch(() => {});
+  }, [selected]);
   const counts = useMemo(() => ({
     active: snap.agents.filter((a) => a.status === "thinking" || a.status === "tool").length,
     waiting: snap.approvals.length,

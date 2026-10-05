@@ -133,14 +133,9 @@ export async function GET(req: NextRequest) {
         stopped = true;
         clearInterval(ping);
         unsubscribe?.();
-        // Decrementar contador y parar colector si no hay más clientes
-        sseClientCount--;
-        if (sseClientCount <= 0) {
-          sseClientCount = 0;
-          collectorStarted = false;
-          // Opcional: mantener colector vivo un tiempo o pararlo
-          // getWsCollector().stop();
-        }
+        // El colector es global (lo posee instrumentation.ts): no se detiene al
+        // cerrar el stream, para seguir persistiendo sin navegador abierto.
+        sseClientCount = Math.max(0, sseClientCount - 1);
         try { controller.close(); } catch {}
       });
 
@@ -155,20 +150,13 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Arranca el colector WS para agentes activos.
- * Obtiene la lista de agentes desde /api/agents y los suscribe.
+ * Arranca (idempotente) el colector server-side. Normalmente ya fue iniciado por
+ * `instrumentation.ts` al bootear el servidor; esto es una red de seguridad.
+ * El WebSocket vivo se gestiona aparte para el agente seleccionado.
  */
 async function startCollector(): Promise<void> {
   try {
-    const agents = await ofJson<any[]>("/api/agents");
-    if (!agents?.length) {
-      console.log('[ws-collector] No hay agentes para monitorear');
-      return;
-    }
-    const agentIds = agents.map((a) => a.id);
-    const collector = getWsCollector();
-    await collector.start(agentIds);
-    console.log('[ws-collector] Iniciado via SSE para:', agentIds.join(', '));
+    await getWsCollector().start();
   } catch (e) {
     console.error('[ws-collector] Error iniciando:', e);
   }

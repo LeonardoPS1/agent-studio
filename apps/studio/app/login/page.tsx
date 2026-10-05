@@ -20,8 +20,8 @@ export default function Login() {
       <form onSubmit={submit} className="login-card">
         <h1>OpenFang Studio</h1>
         <p className="muted">Mission Control para tus agentes</p>
-        <label>Contraseña
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password" />
+        <label htmlFor="password">Contraseña
+          <input id="password" name="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password" />
         </label>
         <button className="primary" disabled={busy || !password}>{busy ? "Entrando…" : "Entrar"}</button>
         {error && <p className="error" role="alert">{error}</p>}
