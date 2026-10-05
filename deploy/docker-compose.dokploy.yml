@@ -47,18 +47,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+    # El container se expone via Traefik (provider docker, red dokploy-network).
+    # Los routers/servicio y el certificado TLS los genera Dokploy a partir de la
+    # fila de la tabla `domain` (agentstudio.aicorebots.com -> servicio studio:3000),
+    # por eso solo se declara el habilitado y la red; declarar routers aqui
+    # duplicaria los de Dokploy con la misma regla Host(...).
     labels:
       traefik.enable: "true"
       traefik.docker.network: dokploy-network
-      traefik.http.routers.agentstudio-web.rule: Host(`agentstudio.aicorebots.com`)
-      traefik.http.routers.agentstudio-web.entrypoints: web
-      traefik.http.routers.agentstudio-web.middlewares: redirect-to-https@file
-      traefik.http.routers.agentstudio-websecure.rule: Host(`agentstudio.aicorebots.com`)
-      traefik.http.routers.agentstudio-websecure.entrypoints: websecure
-      traefik.http.routers.agentstudio-websecure.tls.certresolver: letsencrypt
-      traefik.http.services.agentstudio.loadbalancer.server.port: "3000"
-    # El dominio público queda declarado por labels de Traefik (prov. docker,
-    # red dokploy-network). El certificado TLS lo emite letsencrypt (HTTP-01).
 
 networks:
   internal:
