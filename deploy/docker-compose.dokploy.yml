@@ -1,11 +1,11 @@
 # Compose para Dokploy: OpenFang (motor, interno) + Studio (interfaz, público vía Traefik).
 # En Dokploy: Create Service > Compose > Git, ruta de compose: deploy/docker-compose.dokploy.yml
-# Variables: pestaña Environment (ver .env.example). El dominio se asigna en la pestaña Domains
+# Variables: pestaña Environment. El dominio se asigna en la pestaña Domains
 # apuntando al servicio "studio", puerto 3000.
 services:
   openfang:
     build:
-      context: ./openfang
+      context: ../openfang-studio/deploy/openfang
       args:
         OPENFANG_VERSION: ${OPENFANG_VERSION:-v0.6.9}
         OPENFANG_SHA256: ${OPENFANG_SHA256:-4309b0bcf2adc5dac45776e2008087a8ad072933f1ae698ff8d4e06fb6b87602}
@@ -22,13 +22,13 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     volumes:
       - openfang-data:/data
-      - ./openfang/config.toml:/data/config.toml:ro
+      - ../openfang-studio/deploy/openfang/config.toml:/data/config.toml:ro
     networks: [internal]
     # Sin "ports": el motor NO se publica; solo Studio lo alcanza por la red interna.
 
   studio:
     build:
-      context: ../apps/studio
+      context: ../openfang-studio/apps/studio
     restart: unless-stopped
     depends_on:
       openfang:
