@@ -23,7 +23,7 @@ export async function GET() {
     const ofKey = process.env.OPENFANG_API_KEY;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(`${ofUrl}/health`, {
+    const res = await fetch(`${ofUrl}/api/health`, {
       headers: ofKey ? { Authorization: `Bearer ${ofKey}` } : {},
       signal: controller.signal,
     });
