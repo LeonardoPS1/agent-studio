@@ -3,13 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Section } from "@/components/ui";
-
-interface DiffLine {
-  type: 'add' | 'remove' | 'change' | 'unchanged';
-  line: number;
-  old?: string;
-  new?: string;
-}
+import { diffLines, summarizeDiff, type DiffRow } from "@/lib/toml-diff";
 
 interface ManifestDiffProps {
   agentId: string;
@@ -20,11 +14,9 @@ interface ManifestDiffProps {
 }
 
 export default function ManifestDiff({ agentId, agentName, oldVersion, newVersion, onClose }: ManifestDiffProps) {
-  const [diff, setDiff] = useState<DiffLine[]>([]);
+  const [diff, setDiff] = useState<DiffRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [oldToml, setOldToml] = useState('');
-  const [newToml, setNewToml] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -37,10 +29,7 @@ export default function ManifestDiff({ agentId, agentName, oldVersion, newVersio
         const oldData = await oldRes.json();
         const newData = await newRes.json();
         if (!oldData.manifest || !newData.manifest) throw new Error('Manifiesto no encontrado');
-        setOldToml(oldData.manifest.toml);
-        setNewToml(newData.manifest.toml);
-        const computedDiff = computeDiff(oldData.manifest.toml, newData.manifest.toml);
-        setDiff(computedDiff);
+        setDiff(diffLines(oldData.manifest.toml, newData.manifest.toml));
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -50,32 +39,7 @@ export default function ManifestDiff({ agentId, agentName, oldVersion, newVersio
     load();
   }, [agentId, oldVersion, newVersion]);
 
-  function computeDiff(oldToml: string, newToml: string): DiffLine[] {
-    const oldLines = oldToml.split('\n');
-    const newLines = newToml.split('\n');
-    const result: DiffLine[] = [];
-    const maxLen = Math.max(oldLines.length, newLines.length);
-    for (let i = 0; i < maxLen; i++) {
-      const oldLine = oldLines[i];
-      const newLine = newLines[i];
-      if (oldLine === undefined) {
-        result.push({ type: 'add', line: i + 1, new: newLine });
-      } else if (newLine === undefined) {
-        result.push({ type: 'remove', line: i + 1, old: oldLine });
-      } else if (oldLine !== newLine) {
-        result.push({ type: 'change', line: i + 1, old: oldLine, new: newLine });
-      } else {
-        result.push({ type: 'unchanged', line: i + 1, new: newLine });
-      }
-    }
-    return result;
-  }
-
-  const stats = {
-    added: diff.filter(d => d.type === 'add').length,
-    removed: diff.filter(d => d.type === 'remove').length,
-    changed: diff.filter(d => d.type === 'change').length,
-  };
+  const stats = summarizeDiff(diff);
 
   if (loading) return <div className="pane timeline-loading">Calculando diff…</div>;
   if (error) return <div className="pane" style={{color: 'var(--bad)'}}>Error: {error}</div>;
@@ -94,30 +58,27 @@ export default function ManifestDiff({ agentId, agentName, oldVersion, newVersio
         <table style={{width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--mono)', fontSize: '12px'}}>
           <thead>
             <tr style={{background: 'var(--panel)', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0}}>
-              <th style={{width: '60px', textAlign: 'right', padding: '8px 12px', color: 'var(--muted)'}}>Línea</th>
               <th style={{width: '60px', textAlign: 'right', padding: '8px 12px', color: 'var(--muted)'}}>Antigua</th>
-              <th style={{textAlign: 'left', padding: '8px 12px', color: 'var(--muted)'}}>Nueva</th>
+              <th style={{textAlign: 'left', padding: '8px 12px', color: 'var(--muted)'}}>Contenido anterior</th>
+              <th style={{width: '60px', textAlign: 'right', padding: '8px 12px', color: 'var(--muted)'}}>Nueva</th>
+              <th style={{textAlign: 'left', padding: '8px 12px', color: 'var(--muted)'}}>Contenido nuevo</th>
             </tr>
           </thead>
           <tbody>
-            {diff.map((d) => (
+            {diff.map((d, i) => (
               <tr
-                key={d.line}
+                key={i}
                 style={{
                   background:
                     d.type === 'add' ? 'color-mix(in srgb, var(--ok) 10%, transparent)' :
                     d.type === 'remove' ? 'color-mix(in srgb, var(--bad) 10%, transparent)' :
-                    d.type === 'change' ? 'color-mix(in srgb, var(--waiting) 10%, transparent)' :
                     'transparent',
                 }}
               >
-                <td style={{padding: '4px 12px', textAlign: 'right', color: 'var(--muted)', userSelect: 'none'}}>{d.line}</td>
-                <td style={{padding: '4px 12px', color: d.type === 'remove' || d.type === 'change' ? 'var(--bad)' : 'var(--ink)'}}>
-                  {d.type === 'add' ? '—' : d.old ?? ''}
-                </td>
-                <td style={{padding: '4px 12px', color: d.type === 'add' || d.type === 'change' ? 'var(--ok)' : 'var(--ink)'}}>
-                  {d.type === 'remove' ? '—' : d.new ?? ''}
-                </td>
+                <td style={{padding: '4px 12px', textAlign: 'right', color: 'var(--muted)', userSelect: 'none'}}>{d.oldNo ?? ''}</td>
+                <td style={{padding: '4px 12px', color: d.type === 'remove' ? 'var(--bad)' : 'var(--ink)', whiteSpace: 'pre-wrap'}}>{d.old ?? ''}</td>
+                <td style={{padding: '4px 12px', textAlign: 'right', color: 'var(--muted)', userSelect: 'none'}}>{d.newNo ?? ''}</td>
+                <td style={{padding: '4px 12px', color: d.type === 'add' ? 'var(--ok)' : 'var(--ink)', whiteSpace: 'pre-wrap'}}>{d.new ?? ''}</td>
               </tr>
             ))}
           </tbody>

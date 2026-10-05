@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runMigrations, isDbConfigured, getAgentManifest, deleteAgentManifest, getLatestManifestVersion, createAgentManifest } from '@/lib/db';
+import { isDbConfigured, getAgentManifest, deleteAgentManifest } from '@/lib/db';
 import { of } from '@/lib/of';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,6 @@ export async function GET(
   req: NextRequest,
   ctx: { params: Promise<{ agent_id: string; version: string }> }
 ) {
-  await runMigrations();
   if (!isDbConfigured()) {
     return NextResponse.json({ manifest: null, db: false });
   }
@@ -32,7 +31,6 @@ export async function DELETE(
   req: NextRequest,
   ctx: { params: Promise<{ agent_id: string; version: string }> }
 ) {
-  await runMigrations();
   if (!isDbConfigured()) {
     return NextResponse.json({ ok: false, db: false }, { status: 503 });
   }
@@ -57,7 +55,6 @@ export async function POST(
   ctx: { params: Promise<{ agent_id: string; version: string }> }
 ) {
   // Deploy manifest to OpenFang engine
-  await runMigrations();
   if (!isDbConfigured()) {
     return NextResponse.json({ ok: false, db: false }, { status: 503 });
   }

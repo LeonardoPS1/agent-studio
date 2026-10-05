@@ -25,6 +25,8 @@ const BASE = (process.env.OPENFANG_URL ?? 'http://localhost:4200').replace(/\/$/
 const KEY = process.env.OPENFANG_API_KEY ?? '';
 const AUDIT_POLL_MS = 2000;
 const WS_IDLE_TIMEOUT_MS = 60_000;
+const EVENTS_RETENTION_DAYS = Number(process.env.EVENTS_RETENTION_DAYS ?? '30');
+const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 interface AuditEntry {
   seq: number;
@@ -95,6 +97,7 @@ export class WsCollector {
   private dbReady = false;
   private db: DbModule | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
+  private pruneTimer: NodeJS.Timeout | null = null;
   private pollInFlight = false;
   private lastAuditSeq = -1;
 
@@ -157,12 +160,21 @@ export class WsCollector {
       this.pollAudit().catch((e) => console.error('[ws-collector] sondeo falló:', e));
     }, AUDIT_POLL_MS);
 
+    // Retención: purga eventos viejos al arrancar y luego cada hora.
+    if (this.dbReady && this.db) {
+      await this.pruneEvents();
+      this.pruneTimer = setInterval(() => {
+        this.pruneEvents().catch((e) => console.error('[ws-collector] purga falló:', e));
+      }, PRUNE_INTERVAL_MS);
+    }
+
     console.log('[ws-collector] Sondeo de auditoría iniciado');
   }
 
   stop(): void {
     this.running = false;
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (this.pruneTimer) { clearInterval(this.pruneTimer); this.pruneTimer = null; }
     this.closeWs();
     console.log('[ws-collector] Detenido');
   }
@@ -204,6 +216,18 @@ export class WsCollector {
       return Number(r.rows[0]?.m ?? -1);
     } catch {
       return -1;
+    }
+  }
+
+  /** Purga eventos más viejos que EVENTS_RETENTION_DAYS (0 desactiva). */
+  private async pruneEvents(): Promise<void> {
+    if (!this.dbReady || !this.db) return;
+    if (!EVENTS_RETENTION_DAYS || EVENTS_RETENTION_DAYS <= 0) return;
+    try {
+      const deleted = await this.db.pruneEvents(EVENTS_RETENTION_DAYS);
+      if (deleted > 0) console.log(`[ws-collector] retención: ${deleted} eventos purgados`);
+    } catch (e) {
+      console.error('[ws-collector] error en retención:', e);
     }
   }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runMigrations, isDbConfigured, queryEvents, getRunsWithEventCounts } from '@/lib/db';
+import { isDbConfigured, queryEvents, getRunsWithEventCounts } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -20,8 +20,6 @@ export const runtime = 'nodejs';
  * Lista runs recientes con conteo de eventos.
  */
 export async function GET(req: NextRequest) {
-  await runMigrations();
-
   const sp = req.nextUrl.searchParams;
 
   // Modo lista de runs
