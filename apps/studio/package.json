@@ -9,7 +9,10 @@
     "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
     "test": "jest --maxWorkers=1 --no-coverage",
     "test:unit": "jest --maxWorkers=1 --no-coverage",
-    "test:watch": "jest --watch --maxWorkers=1"
+    "test:watch": "jest --watch --maxWorkers=1",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "migrate:prod": "node ../scripts/migrate-prod.js"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",
@@ -20,6 +23,7 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",

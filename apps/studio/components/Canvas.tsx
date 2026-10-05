@@ -35,6 +35,7 @@ export default function Canvas({ agents, edges, selectedId, onSelect }: {
   agents: AgentNode[]; edges: Edge[]; selectedId: string | null; onSelect: (id: string | null) => void;
 }) {
   const [saved, setSaved] = useState<Record<string, { x: number; y: number }>>({});
+  const reactFlowInstance = useMemo(() => ({ current: null as any }), []);
   useEffect(() => { try { setSaved(JSON.parse(localStorage.getItem("studio-layout") ?? "{}")); } catch {} }, []);
 
   const auto = useMemo(() => autoLayout(agents, edges), [agents, edges]);
@@ -68,11 +69,40 @@ export default function Canvas({ agents, edges, selectedId, onSelect }: {
     }
   };
 
+  const onInit = (instance: any) => {
+    reactFlowInstance.current = instance;
+    if (agents.length > 0) {
+      instance.fitView({ padding: 0.3, maxZoom: 1, duration: 0 });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onSelect(null);
+    }
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey) {
+      reactFlowInstance.current?.fitView({ padding: 0.3, maxZoom: 1 });
+    }
+  };
+
   return (
-    <ReactFlow nodes={nodes} edges={rfEdges} nodeTypes={nodeTypes} onNodesChange={onNodesChange}
-      onNodeClick={(_, n) => onSelect(n.id)} onPaneClick={() => onSelect(null)}
-      nodesConnectable={false} fitView fitViewOptions={{ padding: 0.3, maxZoom: 1 }} minZoom={0.2}
-      proOptions={{ hideAttribution: true }}>
+    <ReactFlow
+      nodes={nodes}
+      edges={rfEdges}
+      nodeTypes={nodeTypes}
+      onNodesChange={onNodesChange}
+      onNodeClick={(_, n) => onSelect(n.id)}
+      onPaneClick={() => onSelect(null)}
+      onInit={onInit}
+      onKeyDown={handleKeyDown}
+      nodesConnectable={false}
+      fitView={false}
+      fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+      minZoom={0.2}
+      maxZoom={2}
+      proOptions={{ hideAttribution: true }}
+      aria-label="Mapa de agentes"
+    >
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="var(--dots)" />
       <Controls showInteractive={false} />
     </ReactFlow>

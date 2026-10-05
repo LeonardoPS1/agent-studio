@@ -1,0 +1,113 @@
+name: Deploy to Dokploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Dokploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify required secrets
+        run: |
+          if [ -z "${{ secrets.DOKPLOY_API_TOKEN }}" ]; then
+            echo "❌ DOKPLOY_API_TOKEN secret not configured"
+            exit 1
+          fi
+          if [ -z "${{ secrets.OPENFANG_API_KEY }}" ]; then
+            echo "❌ OPENFANG_API_KEY secret not configured"
+            exit 1
+          fi
+          if [ -z "${{ secrets.STUDIO_PASSWORD }}" ]; then
+            echo "❌ STUDIO_PASSWORD secret not configured"
+            exit 1
+          fi
+          if [ -z "${{ secrets.STUDIO_SECRET }}" ]; then
+            echo "❌ STUDIO_SECRET secret not configured"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install requests --quiet
+
+      - name: Create .env.dokploy from secrets
+        run: |
+          cat > .env.dokploy << 'EOF'
+          # Dokploy API
+          DOKPLOY_API_URL=http://51.222.207.250:3000
+          DOKPLOY_API_TOKEN=${{ secrets.DOKPLOY_API_TOKEN }}
+          DOKPLOY_PROJECT_NAME=agent-studio
+          DOKPLOY_SERVICE_NAME=agent-studio
+          DOKPLOY_GIT_REPO=https://github.com/LeonardoPS1/agent-studio
+          DOKPLOY_GIT_BRANCH=main
+          DOKPLOY_COMPOSE_PATH=deploy/docker-compose.dokploy.yml
+          DOKPLOY_DOMAIN=agentstudio.aicorebots.com
+          DOKPLOY_ENV_OPENFANG_API_KEY=${{ secrets.OPENFANG_API_KEY }}
+          DOKPLOY_ENV_STUDIO_PASSWORD=${{ secrets.STUDIO_PASSWORD }}
+          DOKPLOY_ENV_STUDIO_SECRET=${{ secrets.STUDIO_SECRET }}
+          DOKPLOY_ENV_ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+          DOKPLOY_FORCE_RECREATE=false
+          EOF
+
+      - name: Run Dokploy ensure service script
+        run: |
+          python scripts/dokploy_ensure_service.py --apply
+
+      - name: Trigger Dokploy redeploy
+        run: |
+          # Wait a moment for service to be created/updated
+          sleep 5
+          # Trigger redeploy via Dokploy API
+          curl -X POST "http://51.222.207.250:3000/api/services/compose/redeploy" \
+            -H "Authorization: Bearer ${{ secrets.DOKPLOY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"projectName": "agent-studio", "serviceName": "agent-studio"}' \
+            || echo "Redeploy trigger failed (may not be needed if auto-deploy on push)"
+
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 30
+
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            echo "Health check attempt $i/10..."
+            if curl -sf "https://agentstudio.aicorebots.com/api/health" | jq -e '.ok == true' > /dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ Health check failed after 10 attempts"
+          exit 1
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "🌐 https://agentstudio.aicorebots.com"
+          echo "🏥 Health: https://agentstudio.aicorebots.com/api/health"
+
+      - name: Notify failure
+        if: failure()
+        run: |
+          echo "💥 Deployment failed"
+          echo "Check GitHub Actions logs and Dokploy UI for details"

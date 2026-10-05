@@ -3,8 +3,31 @@ import path from 'path';
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
+let _pool: any = null;
+
 export function isDbConfigured(): boolean {
   return !!DATABASE_URL;
+}
+
+export function getPool() {
+  if (!isDbConfigured()) return null;
+  if (_pool) return _pool;
+  const { Pool } = require('pg');
+  _pool = new Pool({ connectionString: DATABASE_URL, max: 5 });
+  return _pool;
+}
+
+export async function checkDbConnection(): Promise<boolean> {
+  if (!isDbConfigured()) return false;
+  try {
+    const pool = getPool();
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -216,6 +239,116 @@ export async function queryEvents(params: {
       data: row.data,
       seq: Number(row.seq),
     }));
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * Agent Manifests CRUD
+ */
+export async function createAgentManifest(params: {
+  agent_id: string;
+  version: number;
+  toml: string;
+  diff_from_prev?: Record<string, unknown>;
+  author?: string;
+}): Promise<{ id: number }> {
+  const client = await getClient();
+  try {
+    const r = await client.query(
+      `INSERT INTO agent_manifests (agent_id, version, toml, diff_from_prev, author)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id`,
+      [params.agent_id, params.version, params.toml, JSON.stringify(params.diff_from_prev ?? {}), params.author ?? 'studio']
+    );
+    return { id: Number(r.rows[0].id) };
+  } finally {
+    await client.end();
+  }
+}
+
+export async function getAgentManifests(agent_id: string): Promise<Array<{
+  id: number;
+  agent_id: string;
+  version: number;
+  toml: string;
+  diff_from_prev: Record<string, unknown>;
+  created_at: string;
+  author: string;
+}>> {
+  const client = await getClient();
+  try {
+    const r = await client.query(
+      `SELECT * FROM agent_manifests WHERE agent_id=$1 ORDER BY version DESC`,
+      [agent_id]
+    );
+    return r.rows.map((row) => ({
+      id: Number(row.id),
+      agent_id: row.agent_id,
+      version: Number(row.version),
+      toml: row.toml,
+      diff_from_prev: row.diff_from_prev,
+      created_at: row.created_at,
+      author: row.author,
+    }));
+  } finally {
+    await client.end();
+  }
+}
+
+export async function getAgentManifest(agent_id: string, version: number): Promise<{
+  id: number;
+  agent_id: string;
+  version: number;
+  toml: string;
+  diff_from_prev: Record<string, unknown>;
+  created_at: string;
+  author: string;
+} | null> {
+  const client = await getClient();
+  try {
+    const r = await client.query(
+      `SELECT * FROM agent_manifests WHERE agent_id=$1 AND version=$2`,
+      [agent_id, version]
+    );
+    if (r.rows.length === 0) return null;
+    const row = r.rows[0];
+    return {
+      id: Number(row.id),
+      agent_id: row.agent_id,
+      version: Number(row.version),
+      toml: row.toml,
+      diff_from_prev: row.diff_from_prev,
+      created_at: row.created_at,
+      author: row.author,
+    };
+  } finally {
+    await client.end();
+  }
+}
+
+export async function getLatestManifestVersion(agent_id: string): Promise<number> {
+  const client = await getClient();
+  try {
+    const r = await client.query(
+      `SELECT COALESCE(MAX(version), 0) AS max_version FROM agent_manifests WHERE agent_id=$1`,
+      [agent_id]
+    );
+    return Number(r.rows[0]?.max_version ?? 0);
+  } finally {
+    await client.end();
+  }
+}
+
+export async function deleteAgentManifest(agent_id: string, version: number): Promise<boolean> {
+  const client = await getClient();
+  try {
+    const r = await client.query(
+      `DELETE FROM agent_manifests WHERE agent_id=$1 AND version=$2`,
+      [agent_id, version]
+    );
+    return r.rowCount !== null && r.rowCount > 0;
   } finally {
     await client.end();
   }
