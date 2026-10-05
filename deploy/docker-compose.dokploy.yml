@@ -5,7 +5,7 @@
 services:
   openfang:
     build:
-      context: ../openfang-studio/deploy/openfang
+      context: ../deploy/openfang
       args:
         OPENFANG_VERSION: ${OPENFANG_VERSION:-v0.6.9}
         OPENFANG_SHA256: ${OPENFANG_SHA256:-4309b0bcf2adc5dac45776e2008087a8ad072933f1ae698ff8d4e06fb6b87602}
@@ -22,13 +22,13 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     volumes:
       - openfang-data:/data
-      - ../openfang-studio/deploy/openfang/config.toml:/data/config.toml:ro
+      - ../deploy/openfang/config.toml:/data/config.toml:ro
     networks: [internal]
     # Sin "ports": el motor NO se publica; solo Studio lo alcanza por la red interna.
 
   studio:
     build:
-      context: ../openfang-studio/apps/studio
+      context: ../apps/studio
     restart: unless-stopped
     depends_on:
       openfang:
