@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/studio/package-lock.json
+      - name: Install deps
+        working-directory: apps/studio
+        run: npm ci --ignore-scripts
+      - name: Typecheck
+        working-directory: apps/studio
+        run: npm run typecheck
+      - name: Unit tests
+        working-directory: apps/studio
+        run: npm run test:unit
+
+  # Contract tests contra OpenFang v0.6.9 (opcional en CI local; en entorno GitHub requiere binario/cache)
+  # Se deja preparado para ejecutarse cuando haya binario disponible
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: false  # desactivado por ahora hasta configurar cache binario v0.6.9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prep
+        run: |
+          mkdir -p .bin
+          # TODO: descargar openfang v0.6.9 + verificar SHA-256 y cachear en .bin/openfang
+      - name: Verify contract
+        run: |
+          # python scripts/verify_contract.py (ajustar ruta/entorno)
+          echo "skipped for now"

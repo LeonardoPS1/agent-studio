@@ -1,0 +1,7 @@
+# Configuración de OpenFang montada en /data/config.toml (solo lectura).
+# Los secretos NO van aquí: api_key_env es el NOMBRE de la variable de entorno.
+# Cambia provider/model por el que uses (anthropic, openai, gemini, groq, openrouter, ollama...).
+[default_model]
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+api_key_env = "ANTHROPIC_API_KEY"
