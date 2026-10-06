@@ -10,7 +10,7 @@ export default function Login() {
     e.preventDefault();
     setBusy(true); setError("");
     const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password }) });
-    if (r.ok) { window.location.href = "/app"; return; }
+    if (r.ok) { window.location.href = "/dashboard"; return; }
     setError((await r.json().catch(() => ({}))).error ?? "No se pudo iniciar sesión");
     setBusy(false);
   }

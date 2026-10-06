@@ -45,11 +45,11 @@ test.describe('Mission Control (authenticated)', () => {
     const password = process.env.STUDIO_PASSWORD!;
     await page.fill('input[name="password"]', password);
     await page.click('button[type="submit"]');
-    await page.waitForURL('/app');
+    await page.waitForURL('/dashboard');
   });
 
   test('should load Mission Control dashboard', async ({ page }) => {
-    await expect(page.locator('h1')).toHaveText('OpenFang Studio');
+    await expect(page.locator('h1')).toHaveText('Agent Studio');
     await expect(page.locator('.pill.ok')).toBeVisible({ timeout: 10000 });
   });
 
