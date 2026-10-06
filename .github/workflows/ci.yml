@@ -76,6 +76,7 @@ jobs:
           HASH="4309b0bcf2adc5dac45776e2008087a8ad072933f1ae698ff8d4e06fb6b87602"
           curl -fsSL "$URL" -o .bin/$BIN
           echo "$HASH  .bin/$BIN" | sha256sum -c -
+          tar -xzf .bin/$BIN -C .bin
           chmod +x .bin/openfang
       - name: Verify contract
         run: |

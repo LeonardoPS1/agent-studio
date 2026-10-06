@@ -20,6 +20,10 @@ jobs:
 
       - name: Verify required secrets
         run: |
+          if [ -z "${{ secrets.DOKPLOY_API_URL }}" ]; then
+            echo "❌ DOKPLOY_API_URL secret not configured"
+            exit 1
+          fi
           if [ -z "${{ secrets.DOKPLOY_API_TOKEN }}" ]; then
             echo "❌ DOKPLOY_API_TOKEN secret not configured"
             exit 1
@@ -51,7 +55,7 @@ jobs:
         run: |
           cat > .env.dokploy << 'EOF'
           # Dokploy API
-          DOKPLOY_API_URL=https://agentstudio.aicorebots.com
+          DOKPLOY_API_URL=${{ secrets.DOKPLOY_API_URL }}
           DOKPLOY_API_TOKEN=${{ secrets.DOKPLOY_API_TOKEN }}
           DOKPLOY_PROJECT_NAME=agent-studio
           DOKPLOY_SERVICE_NAME=agent-studio
@@ -71,13 +75,15 @@ jobs:
           python scripts/dokploy_ensure_service.py --apply
 
       - name: Trigger Dokploy deployment via API
+        env:
+          DOKPLOY_API_URL: ${{ secrets.DOKPLOY_API_URL }}
         run: |
           # Deploy via Dokploy API (never `docker compose up -d`, it breaks Traefik routers)
-          curl -sSf -X POST "https://agentstudio.aicorebots.com/api/compose.deploy" \
+          BASE="${DOKPLOY_API_URL%/}"
+          curl -sSf -X POST "$BASE/api/compose.deploy" \
             -H "x-api-key: ${{ secrets.DOKPLOY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"composeId":"qFbJB4n_1oxZFRpOZqTSh"}' > /dev/null \
-            || echo "Deploy API call failed"
+            -d '{"composeId":"qFbJB4n_1oxZFRpOZqTSh"}'
 
       - name: Wait for deployment
         run: |
