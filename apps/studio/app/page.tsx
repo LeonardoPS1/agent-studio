@@ -1,5 +1,10 @@
-"use client";
-import { Container, Section, Button, Card, CardContent, Link } from "@/components/ui";
+import { Container, Section, Card, Link } from "@/components/ui";
+
+const ctaPrimary =
+  "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 px-6 py-3 text-lg h-12 bg-accent text-white border border-accent hover:bg-accent/90 active:scale-[0.97] focus-visible:ring-accent";
+
+const ctaOnAccent =
+  "inline-flex items-center justify-center font-medium rounded-lg transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 px-6 py-3 text-lg h-12 bg-white text-accent border border-white hover:bg-white/90 active:scale-[0.97] focus-visible:ring-white";
 
 const features = [
   {
@@ -125,9 +130,9 @@ export default function LandingPage() {
             Self-hosted en tu infraestructura. Sin vendor lock-in. Sin sorpresas.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="w-full sm:w-auto" onClick={() => window.location.href = "/login"}>
+            <a href="/login" className={`${ctaPrimary} w-full sm:w-auto`}>
               Entrar al Studio
-            </Button>
+            </a>
             <Link 
               href="https://github.com/LeonardoPS1/agent-studio" 
               variant="muted" 
@@ -194,9 +199,9 @@ export default function LandingPage() {
         <p className="text-accent/80 text-lg mb-8 max-w-2xl mx-auto">
           Despliega en minutos en Dokploy, Docker o Kubernetes. Conecta tu motor OpenFang y empieza a ver la actividad en tiempo real.
         </p>
-        <Button size="lg" onClick={() => window.location.href = "/login"} className="bg-white text-accent hover:bg-white/90">
+        <a href="/login" className={ctaOnAccent}>
           Empezar ahora
-        </Button>
+        </a>
       </Section>
 
       {/* Footer */}
