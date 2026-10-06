@@ -48,16 +48,27 @@ jobs:
       - name: Build
         working-directory: apps/studio
         run: npm run build
-      - name: Start server
-        working-directory: apps/studio
-        run: |
-          npm run start &
-          sleep 10
-      - name: Run e2e tests
+      - name: Run e2e tests (server lifecycle managed in-step)
         working-directory: apps/studio
         env:
+          # Setting E2E_BASE_URL disables Playwright's own webServer, so it uses
+          # the server started below instead of spawning a second one on :3000.
+          E2E_BASE_URL: http://localhost:3000
           STUDIO_PASSWORD: ${{ secrets.STUDIO_PASSWORD }}
-        run: npm run test:e2e
+        run: |
+          npm run start &
+          SERVER_PID=$!
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/login > /dev/null; then
+              echo "Server ready after ${i} attempt(s)"
+              break
+            fi
+            sleep 2
+          done
+          npm run test:e2e
+          TEST_STATUS=$?
+          kill "$SERVER_PID" 2>/dev/null || true
+          exit $TEST_STATUS
 
   # Contract tests contra OpenFang v0.6.9
   contract:
