@@ -83,10 +83,20 @@ export default function MissionControl() {
   return (
     <div className="app">
       <header className="bar">
-        <h1>Agent Studio</h1>
-        <span className={`pill ${online ? "ok" : online === false ? "bad" : ""}`}>
-          {online === null ? "Conectando…" : online ? "Motor conectado" : "Sin conexión con el motor"}
-        </span>
+        <div className="flex items-center gap-3">
+          <h1>Agent Studio</h1>
+          <nav className="hidden sm:inline-flex items-center gap-2">
+            <ol className="flex flex-col sm:flex-row rtl:space-x-2" aria-label="breadcrumb">
+              <li><a href="/" className="text-muted hover:text-accent" aria-current="page">Inicio</a></li>
+              <li><a href="/dashboard" className={snap.agents.length > 0 ? "text-ink hover:text-accent" : "text-muted hover:text-accent"} aria-current="page">Mission Control</a></li>
+            </ol>
+          </nav>
+          <div className="flex items-center gap-2 sm:gap-3 hide-sm">
+            <span className={`pill ${online ? "ok" : online === false ? "bad" : ""}`}>
+              {online === null ? "Conectando…" : online ? "Motor conectado" : "Sin conexión con el motor"}
+            </span>
+          </div>
+        </div>
         <span className="muted hide-sm">{snap.agents.length} agentes · {counts.active} trabajando · {counts.waiting} por aprobar</span>
         <span className="spacer" />
         {b && b.daily_limit > 0 && (
@@ -114,17 +124,17 @@ export default function MissionControl() {
 
         <aside className="side">
           <div className="tabs" role="tablist">
-            <button role="tab" aria-selected={tab === "activity"} className={tab === "activity" ? "on" : ""} onClick={() => setTab("activity")}>Actividad</button>
-            <button role="tab" aria-selected={tab === "approvals"} className={tab === "approvals" ? "on" : ""} onClick={() => setTab("approvals")}>
+            <button role="tab" aria-selected={tab === "activity"} aria-controls="pane-activity" className={tab === "activity" ? "on" : ""} onClick={() => setTab("activity")}>Actividad</button>
+            <button role="tab" aria-selected={tab === "approvals"} aria-controls="pane-approvals" className={tab === "approvals" ? "on" : ""} onClick={() => setTab("approvals")}>
               Aprobaciones{counts.waiting > 0 && <span className="badge-n">{counts.waiting}</span>}
             </button>
-            <button role="tab" aria-selected={tab === "agent"} className={tab === "agent" ? "on" : ""} onClick={() => setTab("agent")} disabled={!sel}>Agente</button>
-            <button role="tab" aria-selected={tab === "timeline"} className={tab === "timeline" ? "on" : ""} onClick={() => setTab("timeline")}>Timeline</button>
-            <button role="tab" aria-selected={tab === "manifests"} className={tab === "manifests" ? "on" : ""} onClick={() => setTab("manifests")}>Manifiestos</button>
+            <button role="tab" aria-selected={tab === "agent"} aria-controls="pane-agent" className={tab === "agent" ? "on" : ""} onClick={() => setTab("agent")} disabled={!sel}>Agente</button>
+            <button role="tab" aria-selected={tab === "timeline"} aria-controls="pane-timeline" className={tab === "timeline" ? "on" : ""} onClick={() => setTab("timeline")}>Timeline</button>
+            <button role="tab" aria-selected={tab === "manifests"} aria-controls="pane-manifests" className={tab === "manifests" ? "on" : ""} onClick={() => setTab("manifests")}>Manifiestos</button>
           </div>
 
           {tab === "activity" && (
-            <div className="pane">
+            <div id="pane-activity" className="pane" role="tabpanel">
               {sel && <label className="check"><input type="checkbox" checked={onlyAgent} onChange={(e) => setOnlyAgent(e.target.checked)} />Solo {sel.name}</label>}
               {visible.length === 0 && <p className="muted">Sin actividad todavía. Aquí verás qué hace cada agente en tiempo real.</p>}
               <ul className="feed">
@@ -141,7 +151,7 @@ export default function MissionControl() {
           )}
 
           {tab === "approvals" && (
-            <div className="pane">
+            <div id="pane-approvals" className="pane" role="tabpanel">
               {snap.approvals.length === 0 && <p className="muted">Nada pendiente. Cuando un agente quiera hacer una acción sensible, aparecerá aquí.</p>}
               {snap.approvals.map((a) => (
                 <div className="card" key={a.id}>
@@ -156,10 +166,10 @@ export default function MissionControl() {
             </div>
           )}
 
-          {tab === "agent" && sel && <div className="pane"><Inspector key={sel.id} agent={sel} /></div>}
+          {tab === "agent" && sel && <div id="pane-agent" className="pane" role="tabpanel"><Inspector key={sel.id} agent={sel} /></div>}
 
           {tab === "timeline" && (
-            <div className="pane timeline-pane">
+            <div id="pane-timeline" className="pane timeline-pane" role="tabpanel">
               <div className="timeline-toolbar">
                 <select
                   value={selectedRunId ?? ""}
@@ -180,7 +190,7 @@ export default function MissionControl() {
           )}
 
           {tab === "manifests" && (
-            <div className="pane" style={{flex: 1, minHeight: 0, overflow: 'hidden'}}>
+            <div id="pane-manifests" className="pane" style={{flex: 1, minHeight: 0, overflow: 'hidden'}} role="tabpanel">
               <ManifestManager />
             </div>
           )}
