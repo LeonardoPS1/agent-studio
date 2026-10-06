@@ -8,3 +8,4 @@ export { Chart, type ChartProps, type ChartType, type ChartDataPoint } from "./C
 export { EmptyState, type EmptyStateProps } from "./EmptyErrorStates";
 export { ErrorState, type ErrorStateProps } from "./EmptyErrorStates";
 export { LoadingState, type LoadingStateProps } from "./EmptyErrorStates";
+export { Tooltip, type TooltipProps } from "./Tooltip";
